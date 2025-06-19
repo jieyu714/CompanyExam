@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>CompanyExam</title>
+
+  <link rel="stylesheet" href="CSS/style.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <script type="module" src="JS/script.js" defer></script>
+</head>
+
+<body>
+
+  <h1 id="name">　</h1>
+
+  <div class="form-container">
+    <div class="spice-level">
+      <div class="square filled" id="assessmentSpiceLevel"></div>
+      <span>辣度：</span>
+      <div id="pepper-container">
+        <img src="IMAGE/辣椒_無點擊.png" class="pepper" data-level="1" alt="小辣">
+        <img src="IMAGE/辣椒_無點擊.png" class="pepper" data-level="2" alt="中辣">
+        <img src="IMAGE/辣椒_無點擊.png" class="pepper" data-level="3" alt="大辣">
+        <div id="clear-pepper" class="clear-btn">非辣</div>
+      </div>
+
+      <div class="square" id="mild"></div><span>減辣</span>
+      <div class="square" id="sauceServedSeparately"></div><span>過橋</span>
+    </div>
+
+    <div class="form-group">
+      <div class="square filled" id="assessmentTableware"></div>
+      <span>餐具：</span><input type="text" id="tableware" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <div class="square filled" id="assessmentIngredients"></div>
+      <span>食材：</span><input type="text" id="ingredients" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <div class="square filled" id="assessmentPackagingMaterials"></div>
+      <span>包材：</span><input type="text" id="packagingMaterials" autocomplete="off">
+    </div>
+
+    <div class="bottom-buttons">
+      <button id="change">change</button>
+      <button id="check">check</button>
+    </div>
+
+  </div>
+</body>
+</html>
