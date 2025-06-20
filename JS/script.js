@@ -8,35 +8,51 @@ const peppers = document.querySelectorAll('.pepper')
 const clearPepperBtn = document.getElementById('clear-pepper')
 const OFF_SRC = 'IMAGE/辣椒_無點擊.png'
 const ON_SRC = 'IMAGE/辣椒_有點擊.png'
+
 const nameDiv = document.getElementById('name')
 const mildDiv = document.getElementById('mild')
 const sauceServedSeparatelyDiv = document.getElementById('sauceServedSeparately')
+
 let selectedLevel = 0
+
 const tablewareInput = document.getElementById('tableware')
 const ingredientsInput = document.getElementById('ingredients')
 const packagingMaterialsInput = document.getElementById('packagingMaterials')
+
 const spiceLevelAssessment = document.getElementById('assessmentSpiceLevel')
 const tablewareAssessment = document.getElementById('assessmentTableware')
 const ingredientsAssessment = document.getElementById('assessmentIngredients')
 const packagingMaterialsAssessment = document.getElementById('assessmentPackagingMaterials')
-
 
 let loadingTime = 0
 const mealName = []
 const meal = new Map()
 const textConversion = new Map()
 
-function showLoading(titleText, htmlText, showConfirmButtonBool) {
+function showLoading(
+  titleText,
+  htmlText = '',
+  showConfirm = false,
+  showCancel = false
+) {
   loadingTime = Date.now()
   Swal.fire({
     title: titleText,
     html: htmlText,
     allowOutsideClick: false,
-    showConfirmButton: showConfirmButtonBool,
+    showConfirmButton: showConfirm,
+    showCancelButton: showCancel,
+    confirmButtonText: 'ok',
+    cancelButtonText: 'change',
+    reverseButtons: true,
     didOpen: () => {
-      if (!showConfirmButtonBool) {
+      if (!showConfirm) {
         Swal.showLoading()
       }
+    }
+  }).then(result => {
+    if (result.dismiss === Swal.DismissReason.cancel) {
+      functionChange()
     }
   })
 }
@@ -44,37 +60,33 @@ function showLoading(titleText, htmlText, showConfirmButtonBool) {
 function hideLoading() {
   return new Promise(resolve => {
     setTimeout(() => {
-      Swal.close();
-      const clickableElements = document.querySelectorAll('button, .clickable-hours');
-      clickableElements.forEach(element => {
-        element.disabled = false;
-      });
-      resolve();
-    }, Math.max(0, 1000 - (Date.now() - loadingTime)));
-  });
+      Swal.close()
+      document.querySelectorAll('button, .clickable-hours').forEach(el => {
+        el.disabled = false
+      })
+      resolve()
+    }, Math.max(0, 1000 - (Date.now() - loadingTime)))
+  })
 }
 
 peppers.forEach(p => {
   p.addEventListener('click', () => {
     selectedLevel = Number(p.dataset.level)
-    const levelClicked = Number(p.dataset.level)
+    const levelClicked = selectedLevel
     peppers.forEach(pe => {
-      const level = Number(pe.dataset.level)
-      pe.src = level <= levelClicked ? ON_SRC : OFF_SRC
+      pe.src = Number(pe.dataset.level) <= levelClicked ? ON_SRC : OFF_SRC
     })
   })
 })
 
 clearPepperBtn.addEventListener('click', () => {
   selectedLevel = 0
-  peppers.forEach(p => p.src = OFF_SRC)
+  peppers.forEach(p => (p.src = OFF_SRC))
 })
 
 const squares = document.querySelectorAll('.square')
 squares.forEach(sq => {
-  sq.addEventListener('click', () => {
-    sq.classList.toggle('filled')
-  })
+  sq.addEventListener('click', () => sq.classList.toggle('filled'))
 })
 
 async function importMealDetails() {
@@ -86,21 +98,21 @@ async function importMealDetails() {
     console.error('資料獲取錯誤:', error)
     return
   }
-  for (let i = 0; i < data.length; i++) {
-    mealName.push(data[i].name)
-    meal.set(data[i].name, [
-      data[i].spiceLevel,
-      data[i].mild,
-      data[i].sauceServedSeparately,
-      data[i].utensils,
-      data[i].tableware,
-      data[i].condiments,
-      data[i].ingredients,
-      data[i].allergens,
-      data[i].servingTerms,
-      data[i].packagingMaterials
+  data.forEach(row => {
+    mealName.push(row.name)
+    meal.set(row.name, [
+      row.spiceLevel,
+      row.mild,
+      row.sauceServedSeparately,
+      row.utensils,
+      row.tableware,
+      row.condiments,
+      row.ingredients,
+      row.allergens,
+      row.servingTerms,
+      row.packagingMaterials
     ])
-  }
+  })
   return true
 }
 
@@ -113,9 +125,7 @@ async function importMealTextConversion() {
     console.error('資料獲取錯誤:', error)
     return
   }
-  for (let i = 0; i < data.length; i++) {
-    textConversion.set(data[i].original, data[i].conversion)
-  }
+  data.forEach(row => textConversion.set(row.original, row.conversion))
   return true
 }
 
@@ -129,9 +139,7 @@ async function importData() {
 }
 
 function clear() {
-  peppers.forEach(pe => {
-    pe.src = OFF_SRC
-  })
+  peppers.forEach(pe => (pe.src = OFF_SRC))
   selectedLevel = 0
   tablewareInput.value = ''
   ingredientsInput.value = ''
@@ -140,128 +148,140 @@ function clear() {
   sauceServedSeparatelyDiv.classList.remove('filled')
 }
 
-function functionInitialization() {
-  hideLoading()
-  nameDiv.innerHTML = mealName[Math.floor(Math.random() * mealName.length)]
+async function functionInitialization() {
+  await hideLoading()
+  nameDiv.textContent =
+    mealName[Math.floor(Math.random() * mealName.length)] || ''
 }
 
-function formatConversion(object) {
+function formatConversion(str) {
   const s = /[,;，、。.！!？?\s]+/
-  object = object.split(s).filter(Boolean)
-  
-  for (let i = 0; i < object.length; i++) {
-    if (textConversion.has(object[i])) {
-      object[i] = textConversion.get(object[i])
-    }
-  }
-  return object
+  const arr = str.split(s).filter(Boolean)
+  return arr.map(w => (textConversion.has(w) ? textConversion.get(w) : w))
 }
 
-function returnError(object1, object2) {
-  object1 = formatConversion(object1);
-  object2 = formatConversion(object2);
-  let a = '';
-  let b = '';
+function returnError(input, standard) {
+  const arrInput = formatConversion(input)
+  const arrStd = formatConversion(standard)
 
-  for (let i = 0; i < object2.length; i++) {
-    if (object1.includes(object2[i])) {
-      if (a) {
-        a += `、<span style="color: blue">${object2[i]}</span>`;
-      } else {
-        a += `<span style="color: blue">${object2[i]}</span>`;
-      }
-      object1.splice(object1.indexOf(object2[i]), 1);
+  let correct = ''
+  let missing = ''
+
+  arrStd.forEach(word => {
+    if (arrInput.includes(word)) {
+      correct += correct ? `、<span style="color: blue">${word}</span>` : `<span style="color: blue">${word}</span>`
+      arrInput.splice(arrInput.indexOf(word), 1)
     } else {
-      if (a) {
-        a += `、<span style="color: red">${object2[i]}</span>`;
-      } else {
-        a += `<span style="color: red">${object2[i]}</span>`;
-      }
+      correct += correct ? `、<span style="color: red">${word}</span>` : `<span style="color: red">${word}</span>`
     }
-  }
+  })
 
-  for (let i = 0; i < object1.length; i++) {
-    if (b) {
-      b += `、<span style="color: red">${object1[i]}</span>`;
-    } else {
-      b += `<span style="color: red">${object1[i]}</span>`;
-    }
-  }
+  missing = arrInput
+    .map(word => `<span style="color: red">${word}</span>`)
+    .join('、')
 
-  return [a, b];
+  return [correct, missing]
 }
 
-function Compare(object1, object2) {
-  object1 = formatConversion(object1)
-  object2 = formatConversion(object2)
-  for (let i = 0; i < object2.length; i++) {
-    if (object1.includes(object2[i])) {
-      object1 = object1.filter(item => item !== object2[i])
-      object2 = object2.filter(item => item !== object2[i])
-      i--
+function Compare(a, b) {
+  let arrA = formatConversion(a)
+  let arrB = formatConversion(b)
+  arrB.forEach(word => {
+    if (arrA.includes(word)) {
+      arrA = arrA.filter(item => item !== word)
+      arrB = arrB.filter(item => item !== word)
     }
-  }
-  return object1.length + object2.length
+  })
+  return arrA.length + arrB.length
 }
 
 async function functionCheck() {
   showLoading('確認中...', '', false)
-  let error = ""
-  if (spiceLevelAssessment.classList.contains('filled') && selectedLevel != meal.get(nameDiv.textContent)[0]) {
-    error += `辣度：${meal.get(nameDiv.textContent)[0]}(<span style=\"color: red\">${selectedLevel}</span>)<br>`
+
+  let error = ''
+  const std = meal.get(nameDiv.textContent)
+
+  if (spiceLevelAssessment.classList.contains('filled') && selectedLevel !== std[0]) {
+    error += `辣度：${std[0]}(<span style=\"color: red\">${selectedLevel}</span>)<br>`
   }
-  if (spiceLevelAssessment.classList.contains('filled') && mildDiv.classList.contains('filled') != meal.get(nameDiv.textContent)[1]) {
-    error += `減辣：${meal.get(nameDiv.textContent)[1] ? 'O' : 'X'}(<span style=\"color: red\">${mildDiv.classList.contains('filled') ? 'O' : 'X'}</span>)<br>`
+  if (
+    spiceLevelAssessment.classList.contains('filled') &&
+    mildDiv.classList.contains('filled') !== std[1]
+  ) {
+    error += `減辣：${std[1] ? 'O' : 'X'}(<span style=\"color: red\">${
+      mildDiv.classList.contains('filled') ? 'O' : 'X'
+    }</span>)<br>`
   }
-  if (spiceLevelAssessment.classList.contains('filled') && sauceServedSeparatelyDiv.classList.contains('filled') != meal.get(nameDiv.textContent)[2]) {
-    error += `過橋：${meal.get(nameDiv.textContent)[2] ? 'O' : 'X'}(<span style=\"color: red\">${sauceServedSeparatelyDiv.classList.contains('filled') ? 'O' : 'X'}</span>)<br>`
+  if (
+    spiceLevelAssessment.classList.contains('filled') &&
+    sauceServedSeparatelyDiv.classList.contains('filled') !== std[2]
+  ) {
+    error += `過橋：${std[2] ? 'O' : 'X'}(<span style=\"color: red\">${
+      sauceServedSeparatelyDiv.classList.contains('filled') ? 'O' : 'X'
+    }</span>)<br>`
   }
-  if (tablewareInput.value == '') {
-    tablewareInput.value = '無'
-  }
-  if (tablewareAssessment.classList.contains('filled') && Compare(tablewareInput.value, meal.get(nameDiv.textContent)[4])) {
-    let res = returnError(tablewareInput.value, meal.get(nameDiv.textContent)[4])
+
+  if (!tablewareInput.value.trim()) tablewareInput.value = '無'
+  if (
+    tablewareAssessment.classList.contains('filled') &&
+    Compare(tablewareInput.value, std[4])
+  ) {
+    const res = returnError(tablewareInput.value, std[4])
     error += `餐具：${res[0]}(${res[1]})<br>`
   }
-  if (ingredientsInput.value == '') {
-    ingredientsInput.value = '無'
-  }
-  if (ingredientsAssessment.classList.contains('filled') && Compare(ingredientsInput.value, meal.get(nameDiv.textContent)[6])) {
-    let res = returnError(ingredientsInput.value, meal.get(nameDiv.textContent)[6])
+
+  if (!ingredientsInput.value.trim()) ingredientsInput.value = '無'
+  if (
+    ingredientsAssessment.classList.contains('filled') &&
+    Compare(ingredientsInput.value, std[6])
+  ) {
+    const res = returnError(ingredientsInput.value, std[6])
     error += `食材：${res[0]}(${res[1]})<br>`
   }
-  if (packagingMaterialsInput.value == '') {
-    packagingMaterialsInput.value = '無'
-  }
-  if (packagingMaterialsAssessment.classList.contains('filled') && Compare(packagingMaterialsInput.value, meal.get(nameDiv.textContent)[9])) {
-    let res = returnError(packagingMaterialsInput.value, meal.get(nameDiv.textContent)[9])
+
+  if (!packagingMaterialsInput.value.trim()) packagingMaterialsInput.value = '無'
+  if (
+    packagingMaterialsAssessment.classList.contains('filled') &&
+    Compare(packagingMaterialsInput.value, std[9])
+  ) {
+    const res = returnError(packagingMaterialsInput.value, std[9])
     error += `包材：${res[0]}(${res[1]})<br>`
   }
+
   await hideLoading()
-  
+
   if (error) {
-    showLoading('答案錯誤', error, true)
+    showLoading('答案錯誤', error, true, false)
   } else {
-    showLoading('回答正確', '', true)
+    showLoading('回答正確', '', true, true)
   }
 }
 
 async function functionChange() {
   showLoading('更換中...', '請稍候...', false)
-
   clear()
-  nameDiv.innerHTML = '　'
-
+  nameDiv.textContent = '　'
   await hideLoading()
 
   const last = nameDiv.textContent
-  while (nameDiv.textContent == last) {
-    nameDiv.innerHTML = mealName[Math.floor(Math.random() * mealName.length)]
+  while (nameDiv.textContent === last) {
+    nameDiv.textContent = mealName[Math.floor(Math.random() * mealName.length)]
   }
+}
+
+function setupAutoClear() {
+  document.querySelectorAll('.autoClear').forEach(input => {
+    const clearIfNone = () => {
+      if (input.value.trim() === '無') input.value = ''
+    }
+    input.addEventListener('mousedown', clearIfNone)
+    input.addEventListener('focus', clearIfNone)
+  })
 }
 
 document.addEventListener('DOMContentLoaded', () => {
   importData()
   document.getElementById('check').addEventListener('click', functionCheck)
   document.getElementById('change').addEventListener('click', functionChange)
+  setupAutoClear()
 })
