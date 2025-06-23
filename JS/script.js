@@ -24,10 +24,13 @@ const tablewareAssessment = document.getElementById('assessmentTableware')
 const ingredientsAssessment = document.getElementById('assessmentIngredients')
 const packagingMaterialsAssessment = document.getElementById('assessmentPackagingMaterials')
 
+const noRepeat = document.getElementById('noRepeat')
+
 let loadingTime = 0
 const mealName = []
 const meal = new Map()
 const textConversion = new Map()
+const topic = new Set()
 
 function showLoading(
   titleText,
@@ -253,19 +256,26 @@ async function functionCheck() {
   if (error) {
     showLoading('答案錯誤', error, true, false)
   } else {
+    topic.add(nameDiv.textContent)
     showLoading('回答正確', '', true, true)
   }
 }
 
 async function functionChange() {
-  showLoading('更換中...', '請稍候...', false)
+  showLoading('更換中...', '請稍候...', false, false)
   clear()
   nameDiv.textContent = '　'
   await hideLoading()
 
   const last = nameDiv.textContent
-  while (nameDiv.textContent === last) {
+  if (noRepeat.classList.contains('filled') && topic.size == meal.size) {
+    showLoading('測驗結束', '題目已全部完成', true, false)
+    topic.clear()
     nameDiv.textContent = mealName[Math.floor(Math.random() * mealName.length)]
+  } else {
+    while (nameDiv.textContent === last || (noRepeat.classList.contains('filled') && topic.has(nameDiv.textContent))) {
+      nameDiv.textContent = mealName[Math.floor(Math.random() * mealName.length)]
+    }
   }
 }
 
@@ -283,5 +293,11 @@ document.addEventListener('DOMContentLoaded', () => {
   importData()
   document.getElementById('check').addEventListener('click', functionCheck)
   document.getElementById('change').addEventListener('click', functionChange)
+
+  noRepeat.addEventListener('change', () => {
+    if (noRepeat.checked) {
+      topic.clear()
+    }
+  });
   setupAutoClear()
 })
