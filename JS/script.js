@@ -24,12 +24,14 @@ const tablewareAssessment = document.getElementById('assessmentTableware')
 const ingredientsAssessment = document.getElementById('assessmentIngredients')
 const packagingMaterialsAssessment = document.getElementById('assessmentPackagingMaterials')
 
-const noRepeat = document.getElementById('noRepeat')
+const totalQuestionsDisplay = document.getElementById('totalQuestions')
+const remainingQuestionsDisplay = document.getElementById('remainingQuestions')
 
 let loadingTime = 0
 const mealName = []
 const meal = new Map()
-const textConversion = new Map()
+const ingredientsTextConversion = new Map()
+const mealTextConversion = new Map()
 const topic = new Set()
 
 function showLoading(titleText, htmlText = '', showConfirm = false, showCancel = false) {
@@ -113,7 +115,7 @@ async function importMealDetails() {
       ])
     }
   })
-  console.log(mealName)
+  console.log('Meal Name:', mealName)
   return true
 }
 
@@ -126,7 +128,22 @@ async function importMealTextConversion() {
     console.error('資料獲取錯誤:', error)
     return
   }
-  data.forEach(row => textConversion.set(row.original, row.conversion))
+  data.forEach(row => mealTextConversion.set(row.original, row.conversion))
+  console.log('Meal Text Conversion:', mealTextConversion)
+  return true
+} 
+
+async function importIngredientsTextConversion() {
+  const { data, error } = await supabase
+    .from('ingredientsTextConversion')
+    .select('*')
+    .order('original', { ascending: true })
+  if (error) {
+    console.error('資料獲取錯誤:', error)
+    return
+  }
+  data.forEach(row => ingredientsTextConversion.set(row.original, row.conversion))
+  console.log('Ingredients Text Conversion:', ingredientsTextConversion)
   return true
 }
 
@@ -135,6 +152,7 @@ async function importData() {
 
   await importMealDetails()
   await importMealTextConversion()
+  await importIngredientsTextConversion()
 
   functionInitialization()
 }
@@ -151,14 +169,14 @@ function clear() {
 
 async function functionInitialization() {
   await hideLoading()
-  nameDiv.textContent =
-    mealName[Math.floor(Math.random() * mealName.length)] || ''
+  nameDiv.textContent = mealName[Math.floor(Math.random() * mealName.length)]
+  updateQuestionNumber(mealName.length, mealName.length)
 }
 
 function formatConversion(str) {
   const s = /[,;，、。.！!？?\s]+/
   const arr = str.split(s).filter(Boolean)
-  return arr.map(w => (textConversion.has(w) ? textConversion.get(w) : w))
+  return arr.map(w => (ingredientsTextConversion.has(w) ? ingredientsTextConversion.get(w) : w))
 }
 
 function returnError(input, standard) {
@@ -244,6 +262,7 @@ async function functionCheck() {
     showLoading('答案錯誤', error, true, false)
   } else {
     topic.add(nameDiv.textContent)
+    updateQuestionNumber(mealName.length, mealName.length - topic.size)
     showLoading('回答正確', '', true, true)
   }
 }
@@ -251,18 +270,19 @@ async function functionCheck() {
 async function functionChange() {
   showLoading('更換中...', '請稍候...', false, false)
   clear()
+  const last = nameDiv.textContent
   nameDiv.textContent = '　'
   await hideLoading()
 
-  const last = nameDiv.textContent
-  if (noRepeat.classList.contains('filled') && topic.size == meal.size) {
+  if (topic.size == meal.size) {
     showLoading('測驗結束', '題目已全部完成', true, false)
     topic.clear()
+    updateQuestionNumber(mealName.length, mealName.length)
     nameDiv.textContent = mealName[Math.floor(Math.random() * mealName.length)]
   } else {
-    while (nameDiv.textContent === last || (noRepeat.classList.contains('filled') && topic.has(nameDiv.textContent))) {
+    do {
       nameDiv.textContent = mealName[Math.floor(Math.random() * mealName.length)]
-    }
+    } while (nameDiv.textContent === last || topic.has(nameDiv.textContent))
   }
 }
 
@@ -277,7 +297,7 @@ async function functionSpecify() {
     inputValidator: (value) => {
       if (!value) {
         return '您必須輸入餐點名稱！'
-      } else if (!mealName.includes(value)) {
+      } else if (!mealName.includes((mealTextConversion.has(value) ? mealTextConversion.get(value) : value))) {
         return '您輸入的餐點名稱不存在！'
       }
       return undefined
@@ -288,7 +308,7 @@ async function functionSpecify() {
     showLoading('更換指定餐點中...', '請稍候...', false, false)
     clear()
     await hideLoading();
-    nameDiv.textContent = specificName;
+    nameDiv.textContent = (mealTextConversion.has(specificName) ? mealTextConversion.get(specificName) : specificName);
   }
 }
 
@@ -302,16 +322,16 @@ function setupAutoClear() {
   })
 }
 
+function updateQuestionNumber(a, b) {
+  totalQuestionsDisplay.textContent = a
+  remainingQuestionsDisplay.textContent = b
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   importData()
   document.getElementById('check').addEventListener('click', functionCheck)
   document.getElementById('change').addEventListener('click', functionChange)
   document.getElementById('specify').addEventListener('click', functionSpecify)
 
-  noRepeat.addEventListener('change', () => {
-    if (noRepeat.checked) {
-      topic.clear()
-    }
-  });
   setupAutoClear()
 })
