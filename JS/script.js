@@ -28,11 +28,13 @@ const totalQuestionsDisplay = document.getElementById('totalQuestions')
 const remainingQuestionsDisplay = document.getElementById('remainingQuestions')
 
 let loadingTime = 0
-const mealName = []
+const mealName = new Map()
 const meal = new Map()
 const ingredientsTextConversion = new Map()
 const mealTextConversion = new Map()
 const topic = new Set()
+const allTopics = new Set()
+let questionSelectionNumber = 0
 
 function showLoading(titleText, htmlText = '', showConfirm = false, showCancel = false) {
   loadingTime = Date.now()
@@ -100,7 +102,6 @@ async function importMealDetails() {
   }
   data.forEach(row => {
     if (!row.discontinued) {
-      mealName.push(row.name)
       meal.set(row.name, [
         row.spiceLevel,
         row.mild,
@@ -111,8 +112,15 @@ async function importMealDetails() {
         row.ingredients,
         row.allergens,
         row.servingTerms,
-        row.packagingMaterials
+        row.packagingMaterials,
       ])
+
+      if (!mealName.has(row.class)) {
+        mealName.set(row.class, [])
+      }
+      mealName.get(row.class).push(row.name)
+      allTopics.add(row.name)
+      document.querySelector(`div[data-type="${row.class}"]`).classList.add('filled')
     }
   })
   console.log('Meal Name:', mealName)
@@ -169,8 +177,16 @@ function clear() {
 
 async function functionInitialization() {
   await hideLoading()
-  nameDiv.textContent = mealName[Math.floor(Math.random() * mealName.length)]
-  updateQuestionNumber(mealName.length, mealName.length)
+  let total = 0
+  mealName.forEach(valueArray => {
+    total += valueArray.length
+    questionSelectionNumber += 1
+    valueArray.forEach(value => {
+      topic.add(value)
+    })
+  })
+  updateQuestionNumber(total, total)
+  nameDiv.textContent = Array.from(topic)[Math.floor(Math.random() * topic.size)]
 }
 
 function formatConversion(str) {
@@ -260,9 +276,11 @@ async function functionCheck() {
 
   if (error) {
     showLoading('答案錯誤', error, true, false)
+    console.log('答案錯誤:', error)
   } else {
-    topic.add(nameDiv.textContent)
-    updateQuestionNumber(mealName.length, mealName.length - topic.size)
+    topic.delete(nameDiv.textContent)
+    updateQuestionNumber(totalQuestionsDisplay.textContent, topic.size)
+    console.log('回答正確:', nameDiv.textContent)
     showLoading('回答正確', '', true, true)
   }
 }
@@ -274,16 +292,33 @@ async function functionChange() {
   nameDiv.textContent = '　'
   await hideLoading()
 
-  if (topic.size == meal.size) {
+  if (!topic.size) {
     showLoading('測驗結束', '題目已全部完成', true, false)
-    topic.clear()
+    console.log('所有題目皆已完成')
+    console.log('重製中')
+    topic = new Set(allTopics)
     updateQuestionNumber(mealName.length, mealName.length)
     nameDiv.textContent = mealName[Math.floor(Math.random() * mealName.length)]
   } else {
     do {
-      nameDiv.textContent = mealName[Math.floor(Math.random() * mealName.length)]
-    } while (nameDiv.textContent === last || topic.has(nameDiv.textContent))
+      nameDiv.textContent = Array.from(topic)[Math.floor(Math.random() * topic.size)]
+    } while (topic.size > 1 && nameDiv.textContent === last)
   }
+  console.log('題目更換為:', nameDiv.textContent)
+  return true
+}
+
+function mapIncludes(a, b) {
+  const arr = Array.from(a.values())
+  for (let i = 0; i < arr.length; i++) {
+    for (let j = 0; j < arr[i].length; j++) {
+      let value = arr[i][j]
+      if (value == b) {
+        return true
+      }
+    }
+  }
+  return false
 }
 
 async function functionSpecify() {
@@ -297,13 +332,15 @@ async function functionSpecify() {
     inputValidator: (value) => {
       if (!value) {
         return '您必須輸入餐點名稱！'
-      } else if (!mealName.includes((mealTextConversion.has(value) ? mealTextConversion.get(value) : value))) {
+      } else if (!mapIncludes(mealName, (mealTextConversion.has(value) ? mealTextConversion.get(value) : value))) {
+        console.log('指定餐點名稱錯誤輸入:' + value)
         return '您輸入的餐點名稱不存在！'
       }
       return undefined
     }
   })
 
+  console.log('指定餐點名稱:' + specificName + ' => ' + (mealTextConversion.has(specificName) ? mealTextConversion.get(specificName) : specificName))
   if (specificName) {
     showLoading('更換指定餐點中...', '請稍候...', false, false)
     clear()
@@ -322,6 +359,65 @@ function setupAutoClear() {
   })
 }
 
+async function questionChange() {
+  document.querySelectorAll('.question').forEach(el => {
+  el.addEventListener('click', () => {
+    if (el.classList.contains('filled')) {
+      if (mealName.has(el.dataset.type)) {
+        questionSelectionNumber += 1
+        showLoading('題目類型新增', `已新增<strong>${el.dataset.type}</strong>的題目`, true, false)
+        quantityCalculation('+', el.dataset.type)
+        console.log('已點擊', el.dataset.type)
+      } else {
+        showLoading('錯誤', '沒有此類型的題目', true, false)
+        el.classList.remove('filled')
+        console.log(`沒有 ${el.dataset.type} 的題目`)
+      }
+    } else {
+      if (questionSelectionNumber > 1) {
+        questionSelectionNumber -= 1
+        quantityCalculation('-', el.dataset.type)
+        setTimeout(() => {
+          showLoading('題目類型取消', `已取消<strong>${el.dataset.type}</strong>的題目`, true, false)
+        }, 1300 * !topic.has(nameDiv.textContent))
+        if (!topic.has(nameDiv.textContent)) {
+          functionChange()
+        }
+        console.log('已取消', el.dataset.type)
+      } else {
+        showLoading('錯誤', '題目類型至少需要選取一個', true, false)
+        el.classList.add('filled')
+        console.log(`${el.dataset.type} 取消失敗，至少須選取一個類型`)
+      }
+    }
+  })
+})
+}
+
+function quantityCalculation(a, b) {
+  if (a == '+') {
+    if (mealName.has(b)) {
+      mealName.get(b).forEach(value => {
+        topic.add(value)
+        allTopics.add(value)
+        updateQuestionNumber(parseInt(totalQuestionsDisplay.textContent) + 1, parseInt(remainingQuestionsDisplay.textContent) + 1)
+      })
+    }
+  } else if (a == '-') {
+    if (mealName.has(b)) {
+      mealName.get(b).forEach(value => {
+        if (topic.has(value)) {
+          topic.delete(value)
+          updateQuestionNumber(parseInt(totalQuestionsDisplay.textContent) - 1, parseInt(remainingQuestionsDisplay.textContent) - 1)
+        } else {
+          updateQuestionNumber(parseInt(totalQuestionsDisplay.textContent) - 1, parseInt(remainingQuestionsDisplay.textContent))
+        }
+        allTopics.delete(value)
+      })
+    }
+  }
+}
+
 function updateQuestionNumber(a, b) {
   totalQuestionsDisplay.textContent = a
   remainingQuestionsDisplay.textContent = b
@@ -334,4 +430,5 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('specify').addEventListener('click', functionSpecify)
 
   setupAutoClear()
+  questionChange()
 })
