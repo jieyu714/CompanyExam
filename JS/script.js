@@ -32,7 +32,7 @@ const mealName = new Map()
 const meal = new Map()
 const ingredientsTextConversion = new Map()
 const mealTextConversion = new Map()
-const topic = new Set()
+let topic = new Set()
 const allTopics = new Set()
 let questionSelectionNumber = 0
 
@@ -297,8 +297,9 @@ async function functionChange() {
     console.log('所有題目皆已完成')
     console.log('重製中')
     topic = new Set(allTopics)
-    updateQuestionNumber(mealName.length, mealName.length)
-    nameDiv.textContent = mealName[Math.floor(Math.random() * mealName.length)]
+    console.log(mealName.size, topic.size)
+    updateQuestionNumber(topic.size, topic.size)
+    nameDiv.textContent = Array.from(topic)[Math.floor(Math.random() * topic.size)]
   } else {
     do {
       nameDiv.textContent = Array.from(topic)[Math.floor(Math.random() * topic.size)]
@@ -377,9 +378,11 @@ async function questionChange() {
       if (questionSelectionNumber > 1) {
         questionSelectionNumber -= 1
         quantityCalculation('-', el.dataset.type)
-        setTimeout(() => {
-          showLoading('題目類型取消', `已取消<strong>${el.dataset.type}</strong>的題目`, true, false)
-        }, 1300 * !topic.has(nameDiv.textContent))
+        if (topic.size) {
+          setTimeout(() => {
+            showLoading('題目類型取消', `已取消<strong>${el.dataset.type}</strong>的題目`, true, false)
+          }, 1300 * !topic.has(nameDiv.textContent))
+        }
         if (!topic.has(nameDiv.textContent)) {
           functionChange()
         }
