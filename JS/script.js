@@ -36,6 +36,8 @@ let topic = new Set()
 const allTopics = new Set()
 let questionSelectionNumber = 0
 
+let userUUID = ''
+
 function getNowTimeInformation() {
   return Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date()).replace(/,/g, '');
 }
@@ -45,8 +47,7 @@ async function insertData(mode, data = []) {
     try {
       const { error } = await supabase
         .from('insertInformation')
-        .insert([{ timeInformation: getNowTimeInformation(), class: mode, name: data[0], spiceLevel: data[1], mild: data[2], sauceServedSeparately: data[3], tableware: data[4], ingredients: data[5], packagingMaterials: data[6], errorInformation: data[7] }]);
-
+        .insert([{ timeInformation: getNowTimeInformation(), user_uuid: userUUID, class: mode, name: data[0], spiceLevel: data[1], mild: data[2], sauceServedSeparately: data[3], tableware: data[4], ingredients: data[5], packagingMaterials: data[6], errorInformation: data[7] }]);
       if (error) {
         console.error('Error inserting data:', error);
       } else {
@@ -59,7 +60,7 @@ async function insertData(mode, data = []) {
     try {
       const { error } = await supabase
         .from('insertInformation')
-        .insert([{ timeInformation: getNowTimeInformation(), class: mode }]);
+        .insert([{ timeInformation: getNowTimeInformation(), user_uuid: userUUID, class: mode }]);
 
       if (error) {
         console.error('Error inserting data:', error);
@@ -73,7 +74,21 @@ async function insertData(mode, data = []) {
     try {
       const { error } = await supabase
         .from('insertInformation')
-        .insert([{ timeInformation: getNowTimeInformation(), class: mode, name: data[0], originalName: data[1] }]);
+        .insert([{ timeInformation: getNowTimeInformation(), user_uuid: userUUID, class: mode, name: data[0], originalName: data[1] }]);
+
+      if (error) {
+        console.error('Error inserting data:', error);
+      } else {
+        console.log(`資料插入成功, mode: ${mode}, data:${data}`);
+      }
+    } catch (error) {
+      console.error('An unexpected error occurred:', error);
+    }
+  } else if (['Login', 'Logout'].includes(mode)) {
+    try {
+      const { error } = await supabase
+        .from('insertInformation')
+        .insert([{ timeInformation: getNowTimeInformation(), user_uuid: userUUID, class: mode }]);
 
       if (error) {
         console.error('Error inserting data:', error);
@@ -84,6 +99,8 @@ async function insertData(mode, data = []) {
       console.error('An unexpected error occurred:', error);
     }
   }
+  
+  return true
 }
 
 function showLoading(titleText, htmlText = '', showConfirm = false, showCancel = false) {
@@ -481,7 +498,7 @@ function updateQuestionNumber(a, b) {
   remainingQuestionsDisplay.textContent = b
 }
 
-async function loginWithEmail(email, password) {
+async function loginWithEmail(email, password, remember) {
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password
@@ -492,7 +509,19 @@ async function loginWithEmail(email, password) {
     return false
   }
 
-  console.log('登入成功：', data)
+  userUUID = data.user.id
+  console.log('登入成功的UUID:', userUUID)
+
+  if (remember) {
+    localStorage.setItem('rememberedEmail', email)
+    localStorage.setItem('rememberedUUID', userUUID) 
+    localStorage.setItem('rememberedTime', Date.now())
+  } else {
+    localStorage.removeItem('rememberedEmail')
+    localStorage.removeItem('rememberedUUID')
+    localStorage.removeItem('rememberedTime')
+  }
+
   return true
 }
 
@@ -527,15 +556,8 @@ async function showLoginDialog() {
       return null
     }
 
-    const loginSuccess = await loginWithEmail(formValues.email, formValues.password)
+    const loginSuccess = await loginWithEmail(formValues.email, formValues.password, formValues.remember)
     if (loginSuccess) {
-      if (formValues.remember) {
-        localStorage.setItem('rememberedEmail', formValues.email)
-        localStorage.setItem('rememberedTime', Date.now())
-      } else {
-        localStorage.removeItem('rememberedEmail')
-        localStorage.removeItem('rememberedTime')
-      }
       return formValues.email
     } else {
       await Swal.fire({
@@ -548,19 +570,21 @@ async function showLoginDialog() {
   }
 }
 
-
 async function functionInitialization() {
   const rememberedEmail = localStorage.getItem('rememberedEmail')
+  const rememberedUUID = localStorage.getItem('rememberedUUID')
   const rememberedTime = localStorage.getItem('rememberedTime')
 
   const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000
 
-  if (rememberedEmail && rememberedTime) {
+  if (rememberedEmail && rememberedUUID && rememberedTime) {
     const timeDiff = Date.now() - Number(rememberedTime)
     if (timeDiff <= FIVE_DAYS_MS) {
       console.log(`使用記住的帳號自動登入: ${rememberedEmail}`)
+      userUUID = rememberedUUID
     } else {
       localStorage.removeItem('rememberedEmail')
+      localStorage.removeItem('rememberedUUID')
       localStorage.removeItem('rememberedTime')
       const email = await showLoginDialog()
       if (!email) {
@@ -576,6 +600,8 @@ async function functionInitialization() {
     }
   }
 
+  insertData('Login')
+
   importData()
 
   document.getElementById('check').addEventListener('click', functionCheck)
@@ -589,7 +615,10 @@ async function functionInitialization() {
 
 async function logout() {
   localStorage.removeItem('rememberedEmail')
+  localStorage.removeItem('rememberedUUID')
   localStorage.removeItem('rememberedTime')
+
+  await insertData('Logout')
 
   const { error } = await supabase.auth.signOut()
   if (error) {
