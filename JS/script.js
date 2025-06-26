@@ -46,7 +46,7 @@ async function insertData(mode, data = []) {
   if (mode == 'Check') {
     try {
       const { error } = await supabase
-        .from('insertInformation')
+        .from('companyExamInsertInformation')
         .insert([{ timeInformation: getNowTimeInformation(), user_uuid: userUUID, class: mode, name: data[0], spiceLevel: data[1], mild: data[2], sauceServedSeparately: data[3], tableware: data[4], ingredients: data[5], packagingMaterials: data[6], errorInformation: data[7] }]);
       if (error) {
         console.error('Error inserting data:', error);
@@ -59,7 +59,7 @@ async function insertData(mode, data = []) {
   } else if (mode == 'Initialization') {
     try {
       const { error } = await supabase
-        .from('insertInformation')
+        .from('companyExamInsertInformation')
         .insert([{ timeInformation: getNowTimeInformation(), user_uuid: userUUID, class: mode }]);
 
       if (error) {
@@ -73,7 +73,7 @@ async function insertData(mode, data = []) {
   } else if (mode == 'Specify') {
     try {
       const { error } = await supabase
-        .from('insertInformation')
+        .from('companyExamInsertInformation')
         .insert([{ timeInformation: getNowTimeInformation(), user_uuid: userUUID, class: mode, name: data[0], originalName: data[1] }]);
 
       if (error) {
@@ -87,7 +87,7 @@ async function insertData(mode, data = []) {
   } else if (['Login', 'Logout'].includes(mode)) {
     try {
       const { error } = await supabase
-        .from('insertInformation')
+        .from('companyExamInsertInformation')
         .insert([{ timeInformation: getNowTimeInformation(), user_uuid: userUUID, class: mode }]);
 
       if (error) {
