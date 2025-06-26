@@ -212,7 +212,7 @@ async function importData() {
   await importMealTextConversion()
   await importIngredientsTextConversion()
 
-  functionInitialization()
+  titleInitialization()
 }
 
 function clear() {
@@ -225,7 +225,7 @@ function clear() {
   sauceServedSeparatelyDiv.classList.remove('filled')
 }
 
-async function functionInitialization() {
+async function titleInitialization() {
   await hideLoading()
   let total = 0
   mealName.forEach(valueArray => {
@@ -481,12 +481,124 @@ function updateQuestionNumber(a, b) {
   remainingQuestionsDisplay.textContent = b
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+async function loginWithEmail(email, password) {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password
+  })
+
+  if (error) {
+    console.error('登入失敗：', error.message)
+    return false
+  }
+
+  console.log('登入成功：', data)
+  return true
+}
+
+async function showLoginDialog() {
+  while (true) {
+    const { value: formValues } = await Swal.fire({
+      title: '登入',
+      html:
+        `<input type="email" id="swal-email" class="swal2-input" placeholder="Email">` +
+        `<input type="password" id="swal-password" class="swal2-input" placeholder="Password">` +
+        `<label style="display: flex; align-items: center; justify-content: center; margin-top: 10px;">
+           <input type="checkbox" id="swal-remember" style="margin-right: 8px;">
+           記得我(5天)
+         </label>`,
+      focusConfirm: false,
+      showCancelButton: false,
+      confirmButtonText: '登入',
+      allowOutsideClick: false,
+      preConfirm: () => {
+        const email = document.getElementById('swal-email').value.trim()
+        const password = document.getElementById('swal-password').value.trim()
+        const remember = document.getElementById('swal-remember').checked
+        if (!email || !password) {
+          Swal.showValidationMessage('請輸入 Email 和密碼')
+          return false
+        }
+        return { email, password, remember }
+      }
+    })
+
+    if (!formValues) {
+      return null
+    }
+
+    const loginSuccess = await loginWithEmail(formValues.email, formValues.password)
+    if (loginSuccess) {
+      if (formValues.remember) {
+        localStorage.setItem('rememberedEmail', formValues.email)
+        localStorage.setItem('rememberedTime', Date.now())
+      } else {
+        localStorage.removeItem('rememberedEmail')
+        localStorage.removeItem('rememberedTime')
+      }
+      return formValues.email
+    } else {
+      await Swal.fire({
+        icon: 'error',
+        title: '登入失敗',
+        text: '帳號或密碼錯誤，請重新輸入',
+        confirmButtonText: '再試一次'
+      })
+    }
+  }
+}
+
+
+async function functionInitialization() {
+  const rememberedEmail = localStorage.getItem('rememberedEmail')
+  const rememberedTime = localStorage.getItem('rememberedTime')
+
+  const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000
+
+  if (rememberedEmail && rememberedTime) {
+    const timeDiff = Date.now() - Number(rememberedTime)
+    if (timeDiff <= FIVE_DAYS_MS) {
+      console.log(`使用記住的帳號自動登入: ${rememberedEmail}`)
+    } else {
+      localStorage.removeItem('rememberedEmail')
+      localStorage.removeItem('rememberedTime')
+      const email = await showLoginDialog()
+      if (!email) {
+        console.log('使用者未登入')
+        return
+      }
+    }
+  } else {
+    const email = await showLoginDialog()
+    if (!email) {
+      console.log('使用者未登入')
+      return
+    }
+  }
+
   importData()
+
   document.getElementById('check').addEventListener('click', functionCheck)
   document.getElementById('change').addEventListener('click', functionChange)
   document.getElementById('specify').addEventListener('click', functionSpecify)
+  document.getElementById('logout').addEventListener('click', logout)
 
   setupAutoClear()
   questionChange()
+}
+
+async function logout() {
+  localStorage.removeItem('rememberedEmail')
+  localStorage.removeItem('rememberedTime')
+
+  const { error } = await supabase.auth.signOut()
+  if (error) {
+    console.error('登出錯誤:', error)
+  } else {
+    location.reload()
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  functionInitialization()
 })
