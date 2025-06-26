@@ -36,6 +36,56 @@ let topic = new Set()
 const allTopics = new Set()
 let questionSelectionNumber = 0
 
+function getNowTimeInformation() {
+  return Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date()).replace(/,/g, '');
+}
+
+async function insertData(mode, data = []) {
+  if (mode == 'Check') {
+    try {
+      const { error } = await supabase
+        .from('insertInformation')
+        .insert([{ timeInformation: getNowTimeInformation(), class: mode, name: data[0], spiceLevel: data[1], mild: data[2], sauceServedSeparately: data[3], tableware: data[4], ingredients: data[5], packagingMaterials: data[6], errorInformation: data[7] }]);
+
+      if (error) {
+        console.error('Error inserting data:', error);
+      } else {
+        console.log(`資料插入成功, mode: ${mode}, data:${data}`);
+      }
+    } catch (error) {
+      console.error('An unexpected error occurred:', error);
+    }
+  } else if (mode == 'Initialization') {
+    try {
+      const { error } = await supabase
+        .from('insertInformation')
+        .insert([{ timeInformation: getNowTimeInformation(), class: mode }]);
+
+      if (error) {
+        console.error('Error inserting data:', error);
+      } else {
+        console.log(`資料插入成功, mode: ${mode}, data:${data}`);
+      }
+    } catch (error) {
+      console.error('An unexpected error occurred:', error);
+    }
+  } else if (mode == 'Specify') {
+    try {
+      const { error } = await supabase
+        .from('insertInformation')
+        .insert([{ timeInformation: getNowTimeInformation(), class: mode, name: data[0], originalName: data[1] }]);
+
+      if (error) {
+        console.error('Error inserting data:', error);
+      } else {
+        console.log(`資料插入成功, mode: ${mode}, data:${data}`);
+      }
+    } catch (error) {
+      console.error('An unexpected error occurred:', error);
+    }
+  }
+}
+
 function showLoading(titleText, htmlText = '', showConfirm = false, showCancel = false) {
   loadingTime = Date.now()
   Swal.fire({
@@ -187,6 +237,7 @@ async function functionInitialization() {
   })
   updateQuestionNumber(total, total)
   nameDiv.textContent = Array.from(topic)[Math.floor(Math.random() * topic.size)]
+  insertData('Initialization')
 }
 
 function formatConversion(str) {
@@ -274,6 +325,8 @@ async function functionCheck() {
 
   await hideLoading()
 
+  insertData('Check', [nameDiv.textContent, selectedLevel, mildDiv.classList.contains('filled'), sauceServedSeparatelyDiv.classList.contains('filled'), tablewareInput.value, ingredientsInput.value, packagingMaterialsInput.value, error])
+
   if (error) {
     showLoading('答案錯誤', error, true, false)
     console.log('答案錯誤:', error)
@@ -334,6 +387,7 @@ async function functionSpecify() {
       if (!value) {
         return '您必須輸入餐點名稱！'
       } else if (!mapIncludes(mealName, (mealTextConversion.has(value) ? mealTextConversion.get(value) : value))) {
+        insertData('Specify', ['', value])
         console.log('指定餐點名稱錯誤輸入:' + value)
         return '您輸入的餐點名稱不存在！'
       }
@@ -343,6 +397,7 @@ async function functionSpecify() {
 
   console.log('指定餐點名稱:' + specificName + ' => ' + (mealTextConversion.has(specificName) ? mealTextConversion.get(specificName) : specificName))
   if (specificName) {
+    insertData('Specify', [mealTextConversion.has(specificName) ? mealTextConversion.get(specificName) : specificName, specificName])
     showLoading('更換指定餐點中...', '請稍候...', false, false)
     clear()
     await hideLoading();
