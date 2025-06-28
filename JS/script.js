@@ -35,6 +35,7 @@ const mealTextConversion = new Map()
 let topic = new Set()
 const allTopics = new Set()
 let questionSelectionNumber = 0
+let examMode = true
 
 let userUUID = ''
 
@@ -47,21 +48,7 @@ async function insertData(mode, data = []) {
     try {
       const { error } = await supabase
         .from('companyExamInsertInformation')
-        .insert([{ timeInformation: getNowTimeInformation(), user_uuid: userUUID, class: mode, name: data[0], spiceLevel: data[1], mild: data[2], sauceServedSeparately: data[3], tableware: data[4], ingredients: data[5], packagingMaterials: data[6], errorInformation: data[7] }]);
-      if (error) {
-        console.error('Error inserting data:', error);
-      } else {
-        console.log(`資料插入成功, mode: ${mode}, data:${data}`);
-      }
-    } catch (error) {
-      console.error('An unexpected error occurred:', error);
-    }
-  } else if (mode == 'Initialization') {
-    try {
-      const { error } = await supabase
-        .from('companyExamInsertInformation')
-        .insert([{ timeInformation: getNowTimeInformation(), user_uuid: userUUID, class: mode }]);
-
+        .insert([{ timeInformation: getNowTimeInformation(), user_uuid: userUUID, class: mode, name: data[0], spiceLevel: data[1], mild: data[2], sauceServedSeparately: data[3], tableware: data[4], ingredients: data[5], packagingMaterials: data[6], errorInformation: data[7], state: data[8] }]);
       if (error) {
         console.error('Error inserting data:', error);
       } else {
@@ -173,12 +160,9 @@ async function importMealDetails() {
         row.spiceLevel,
         row.mild,
         row.sauceServedSeparately,
-        row.utensils,
         row.tableware,
-        row.condiments,
         row.ingredients,
-        row.allergens,
-        row.servingTerms,
+        row.seasoning,
         row.packagingMaterials,
       ])
 
@@ -254,7 +238,6 @@ async function titleInitialization() {
   })
   updateQuestionNumber(total, total)
   nameDiv.textContent = Array.from(topic)[Math.floor(Math.random() * topic.size)]
-  insertData('Initialization')
 }
 
 function formatConversion(str) {
@@ -269,21 +252,25 @@ function returnError(input, standard) {
 
   let correct = ''
   let missing = ''
+  let total = 0
+  let score = 0
 
   arrStd.forEach(word => {
     if (arrInput.includes(word)) {
       correct += correct ? `、<span style="color: blue">${word}</span>` : `<span style="color: blue">${word}</span>`
       arrInput.splice(arrInput.indexOf(word), 1)
+      score += 1
     } else {
       correct += correct ? `、<span style="color: red">${word}</span>` : `<span style="color: red">${word}</span>`
     }
+    total += 1
   })
 
   missing = arrInput
     .map(word => `<span style="color: red">${word}</span>`)
     .join('、')
 
-  return [correct, missing]
+  return [correct, missing, score, total]
 }
 
 function Compare(a, b) {
@@ -298,60 +285,77 @@ function Compare(a, b) {
   return arrA.length + arrB.length
 }
 
+function evaluate(score, total) {
+  if (score >= 5 || total == score) return "Pass"
+  return "Failed"
+}
+
 async function functionCheck() {
   showLoading('確認中...', '', false)
 
   let error = ''
+  let fail = false
+  let resEvaluate = ''
   const std = meal.get(nameDiv.textContent)
 
   if (spiceLevelAssessment.classList.contains('filled') && selectedLevel !== std[0]) {
     error += `辣度：${std[0]}(<span style="color: red">${selectedLevel}</span>)<br>`
+    fail = true
   }
 
   if (spiceLevelAssessment.classList.contains('filled') && mildDiv.classList.contains('filled') !== std[1]) {
     error += `減辣：${std[1] ? 'O' : 'X'}(<span style="color: red">${mildDiv.classList.contains('filled') ? 'O' : 'X'}</span>)<br>`
+    fail = true
   }
 
   if (spiceLevelAssessment.classList.contains('filled') && sauceServedSeparatelyDiv.classList.contains('filled') !== std[2]) {
     error += `過橋：${std[2] ? 'O' : 'X'}(<span style="color: red">${sauceServedSeparatelyDiv.classList.contains('filled') ? 'O' : 'X'}</span>)<br>`
+    fail = true
   }
 
   if (!tablewareInput.value.trim()) {
     tablewareInput.value = '無'
   }
-  if (tablewareAssessment.classList.contains('filled') && Compare(tablewareInput.value, std[4])) {
-    const res = returnError(tablewareInput.value, std[4])
+  if (tablewareAssessment.classList.contains('filled') && Compare(tablewareInput.value, std[3])) {
+    const res = returnError(tablewareInput.value, std[3])
     error += `餐具：${res[0]}(${res[1]})<br>`
+    fail = true
   }
 
   if (!ingredientsInput.value.trim()) {
     ingredientsInput.value = '無'
   }
-  if (ingredientsAssessment.classList.contains('filled') && Compare(ingredientsInput.value, std[6])) {
-    const res = returnError(ingredientsInput.value, std[6])
-    error += `食材：${res[0]}(${res[1]})<br>`
+  if (ingredientsAssessment.classList.contains('filled')) {
+    if (Compare(ingredientsInput.value, std[4])) {
+      const res = returnError(ingredientsInput.value, std[4])
+      error += `食材：${res[0]}(${res[1]})<br>`
+      resEvaluate = evaluate(res[2], res[3])
+    } else {
+      resEvaluate = "Pass"
+    }
   }
 
   if (!packagingMaterialsInput.value.trim()) {
     packagingMaterialsInput.value = '無'
   }
-  if (packagingMaterialsAssessment.classList.contains('filled') && Compare(packagingMaterialsInput.value, std[9])) {
-    const res = returnError(packagingMaterialsInput.value, std[9])
+  if (packagingMaterialsAssessment.classList.contains('filled') && Compare(packagingMaterialsInput.value, std[6])) {
+    const res = returnError(packagingMaterialsInput.value, std[6])
     error += `包材：${res[0]}(${res[1]})<br>`
+    fail = true
   }
 
   await hideLoading()
 
-  insertData('Check', [nameDiv.textContent, selectedLevel, mildDiv.classList.contains('filled'), sauceServedSeparatelyDiv.classList.contains('filled'), tablewareInput.value, ingredientsInput.value, packagingMaterialsInput.value, error])
+  insertData('Check', [nameDiv.textContent, selectedLevel, mildDiv.classList.contains('filled'), sauceServedSeparatelyDiv.classList.contains('filled'), tablewareInput.value, ingredientsInput.value, packagingMaterialsInput.value, error, (examMode ? (fail ? 'Failed' : resEvaluate) : null)])
 
-  if (error) {
-    showLoading('答案錯誤', error, true, false)
-    console.log('答案錯誤:', error)
-  } else {
+  if (!error || (examMode && !fail && resEvaluate == 'Pass')) {
     topic.delete(nameDiv.textContent)
     updateQuestionNumber(totalQuestionsDisplay.textContent, topic.size)
     console.log('回答正確:', nameDiv.textContent)
     showLoading('回答正確', '', true, true)
+  } else {
+    console.log('答案錯誤:', error)
+    showLoading('答案錯誤', error, true, false)
   }
 }
 
@@ -558,6 +562,7 @@ async function showLoginDialog() {
 
     const loginSuccess = await loginWithEmail(formValues.email, formValues.password, formValues.remember)
     if (loginSuccess) {
+      insertData('Login')
       return formValues.email
     } else {
       await Swal.fire({
@@ -600,14 +605,15 @@ async function functionInitialization() {
     }
   }
 
-  insertData('Login')
-
   importData()
 
   document.getElementById('check').addEventListener('click', functionCheck)
   document.getElementById('change').addEventListener('click', functionChange)
   document.getElementById('specify').addEventListener('click', functionSpecify)
   document.getElementById('logout').addEventListener('click', logout)
+  document.getElementById('examMode').addEventListener('click', () => {
+    examMode = document.getElementById('examMode').classList.contains('filled')
+  })
 
   setupAutoClear()
   questionChange()
