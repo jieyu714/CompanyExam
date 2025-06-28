@@ -19,13 +19,10 @@ const tablewareInput = document.getElementById('tableware')
 const ingredientsInput = document.getElementById('ingredients')
 const packagingMaterialsInput = document.getElementById('packagingMaterials')
 
-const spiceLevelAssessment = document.getElementById('assessmentSpiceLevel')
-const tablewareAssessment = document.getElementById('assessmentTableware')
-const ingredientsAssessment = document.getElementById('assessmentIngredients')
-const packagingMaterialsAssessment = document.getElementById('assessmentPackagingMaterials')
-
 const totalQuestionsDisplay = document.getElementById('totalQuestions')
 const remainingQuestionsDisplay = document.getElementById('remainingQuestions')
+
+const numberBox = document.getElementById('numberBox')
 
 let loadingTime = 0
 const mealName = new Map()
@@ -35,7 +32,7 @@ const mealTextConversion = new Map()
 let topic = new Set()
 const allTopics = new Set()
 let questionSelectionNumber = 0
-let examMode = true
+let currentValue = 6
 
 let userUUID = ''
 
@@ -147,7 +144,7 @@ squares.forEach(sq => {
 
 async function importMealDetails() {
   const { data, error } = await supabase
-    .from('mealDetails')
+    .from('mealdetails')
     .select('*')
     .order('class', { ascending: true })
   if (error) {
@@ -162,7 +159,6 @@ async function importMealDetails() {
         row.sauceServedSeparately,
         row.tableware,
         row.ingredients,
-        row.seasoning,
         row.packagingMaterials,
       ])
 
@@ -241,12 +237,43 @@ async function titleInitialization() {
 }
 
 function formatConversion(str) {
-  const s = /[,;，、。.！!？?\s]+/
-  const arr = str.split(s).filter(Boolean)
-  return arr.map(w => (ingredientsTextConversion.has(w) ? ingredientsTextConversion.get(w) : w))
+  const s1 = /[,;，、。.！!？?\s]+/
+  const s2 = /[+\u5957]/
+  const res = []
+  str.split(s1).filter(Boolean).forEach(subStr => {
+    let tmp = ''
+    subStr.split(s2).filter(Boolean).forEach(subSub => {
+      tmp += (tmp ? '+' : '') + (ingredientsTextConversion.has(subSub) ? ingredientsTextConversion.get(subSub) : subSub)
+    })
+    res.push(tmp)
+  })
+  return res
 }
 
 function returnError(input, standard) {
+  const arrInput = formatConversion(input)
+  const arrStd = formatConversion(standard)
+
+  let correct = ''
+  let missing = ''
+
+  arrStd.forEach(word => {
+    if (arrInput.includes(word)) {
+      correct += correct ? `、<span style="color: blue">${word}</span>` : `<span style="color: blue">${word}</span>`
+      arrInput.splice(arrInput.indexOf(word), 1)
+    } else {
+      correct += correct ? `、<span style="color: red">${word}</span>` : `<span style="color: red">${word}</span>`
+    }
+  })
+
+  missing = arrInput
+    .map(word => `<span style="color: red">${word}</span>`)
+    .join('、')
+
+  return [correct, missing]
+}
+
+function returnErrorElse(input, standard) {
   const arrInput = formatConversion(input)
   const arrStd = formatConversion(standard)
 
@@ -285,70 +312,58 @@ function Compare(a, b) {
   return arrA.length + arrB.length
 }
 
-function evaluate(score, total) {
-  if (score >= 5 || total == score) return "Pass"
-  return "Failed"
-}
-
 async function functionCheck() {
   showLoading('確認中...', '', false)
 
   let error = ''
-  let fail = false
-  let resEvaluate = ''
+  let evaluate = 'Pass'
   const std = meal.get(nameDiv.textContent)
 
-  if (spiceLevelAssessment.classList.contains('filled') && selectedLevel !== std[0]) {
+  if (selectedLevel !== std[0]) {
     error += `辣度：${std[0]}(<span style="color: red">${selectedLevel}</span>)<br>`
-    fail = true
   }
 
-  if (spiceLevelAssessment.classList.contains('filled') && mildDiv.classList.contains('filled') !== std[1]) {
+  if (mildDiv.classList.contains('filled') !== std[1]) {
     error += `減辣：${std[1] ? 'O' : 'X'}(<span style="color: red">${mildDiv.classList.contains('filled') ? 'O' : 'X'}</span>)<br>`
-    fail = true
   }
 
-  if (spiceLevelAssessment.classList.contains('filled') && sauceServedSeparatelyDiv.classList.contains('filled') !== std[2]) {
+  if (sauceServedSeparatelyDiv.classList.contains('filled') !== std[2]) {
     error += `過橋：${std[2] ? 'O' : 'X'}(<span style="color: red">${sauceServedSeparatelyDiv.classList.contains('filled') ? 'O' : 'X'}</span>)<br>`
-    fail = true
   }
 
   if (!tablewareInput.value.trim()) {
     tablewareInput.value = '無'
   }
-  if (tablewareAssessment.classList.contains('filled') && Compare(tablewareInput.value, std[3])) {
+  if (Compare(tablewareInput.value, std[3])) {
     const res = returnError(tablewareInput.value, std[3])
     error += `餐具：${res[0]}(${res[1]})<br>`
-    fail = true
   }
 
   if (!ingredientsInput.value.trim()) {
     ingredientsInput.value = '無'
   }
-  if (ingredientsAssessment.classList.contains('filled')) {
-    if (Compare(ingredientsInput.value, std[4])) {
-      const res = returnError(ingredientsInput.value, std[4])
+  if (Compare(ingredientsInput.value, std[4])) {
+    const res = returnErrorElse(ingredientsInput.value, std[4])
+    console.log('total: ' + res[3] + ', score: ' + res[2])
+    if (!(res[2] >= currentValue || (res[3] == res[2] && res[3] < currentValue))) {
       error += `食材：${res[0]}(${res[1]})<br>`
-      resEvaluate = evaluate(res[2], res[3])
-    } else {
-      resEvaluate = "Pass"
+      evaluate = 'Failed'
     }
   }
 
   if (!packagingMaterialsInput.value.trim()) {
     packagingMaterialsInput.value = '無'
   }
-  if (packagingMaterialsAssessment.classList.contains('filled') && Compare(packagingMaterialsInput.value, std[6])) {
-    const res = returnError(packagingMaterialsInput.value, std[6])
+  if (Compare(packagingMaterialsInput.value, std[5])) {
+    const res = returnError(packagingMaterialsInput.value, std[5])
     error += `包材：${res[0]}(${res[1]})<br>`
-    fail = true
   }
 
   await hideLoading()
 
-  insertData('Check', [nameDiv.textContent, selectedLevel, mildDiv.classList.contains('filled'), sauceServedSeparatelyDiv.classList.contains('filled'), tablewareInput.value, ingredientsInput.value, packagingMaterialsInput.value, error, (examMode ? (fail ? 'Failed' : resEvaluate) : null)])
+  insertData('Check', [nameDiv.textContent, selectedLevel, mildDiv.classList.contains('filled'), sauceServedSeparatelyDiv.classList.contains('filled'), tablewareInput.value, ingredientsInput.value, packagingMaterialsInput.value, error, (error ? 'Failed' : 'Pass')])
 
-  if (!error || (examMode && !fail && resEvaluate == 'Pass')) {
+  if (!error) {
     topic.delete(nameDiv.textContent)
     updateQuestionNumber(totalQuestionsDisplay.textContent, topic.size)
     console.log('回答正確:', nameDiv.textContent)
@@ -611,8 +626,13 @@ async function functionInitialization() {
   document.getElementById('change').addEventListener('click', functionChange)
   document.getElementById('specify').addEventListener('click', functionSpecify)
   document.getElementById('logout').addEventListener('click', logout)
-  document.getElementById('examMode').addEventListener('click', () => {
-    examMode = document.getElementById('examMode').classList.contains('filled')
+  document.getElementById('btnLinePlus').addEventListener('click', () => {
+    currentValue += 1
+    numberBox.value = currentValue
+  })
+  document.getElementById('btnLineMinus').addEventListener('click', () => {
+    currentValue -= 1
+    numberBox.value = currentValue
   })
 
   setupAutoClear()
