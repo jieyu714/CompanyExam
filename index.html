@@ -21,9 +21,12 @@
       <div>Total：<span id="totalQuestions"> 0</span></div>
       <div>Remaining：<span id="remainingQuestions"> 0</span></div>
     </div>
-    <div>
-      <div class="square filled" id="examMode"></div><span>Exam mode</span>
-    </div>
+    <div class="stepper">
+      The amount of ingredients: 
+      <button id="btnLineMinus">-</button>
+      <input type="text" id="numberBox" value="6" readonly>
+      <button id="btnLinePlus">+</button>
+  </div>
   </div>
   <div id="rightInformation">
     <div>
@@ -72,7 +75,6 @@
 
   <div class="form-container">
     <div class="spice-level">
-      <div class="square filled" id="assessmentSpiceLevel"></div>
       <span>辣度：</span>
       <div id="pepper-container">
         <img src="IMAGE/辣椒_無點擊.png" class="pepper" data-level="1" alt="小辣">
@@ -86,15 +88,12 @@
     </div>
 
     <div class="form-group">
-      <div class="square filled" id="assessmentTableware"></div>
       <span>餐具：</span><input class="autoClear" type="text" id="tableware" autocomplete="off">
     </div>
     <div class="form-group">
-      <div class="square filled" id="assessmentIngredients"></div>
       <span>食材：</span><input class="autoClear" type="text" id="ingredients" autocomplete="off">
     </div>
     <div class="form-group">
-      <div class="square filled" id="assessmentPackagingMaterials"></div>
       <span>包材：</span><input class="autoClear" type="text" id="packagingMaterials" autocomplete="off">
     </div>
 
