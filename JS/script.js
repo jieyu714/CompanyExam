@@ -144,7 +144,7 @@ squares.forEach(sq => {
 
 async function importMealDetails() {
   const { data, error } = await supabase
-    .from('mealdetails')
+    .from('mealDetails')
     .select('*')
     .order('class', { ascending: true })
   if (error) {
