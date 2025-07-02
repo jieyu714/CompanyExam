@@ -10,6 +10,7 @@ const OFF_SRC = 'IMAGE/辣椒_無點擊.png'
 const ON_SRC = 'IMAGE/辣椒_有點擊.png'
 
 const nameDiv = document.getElementById('name')
+const fireDiv = document.getElementById('fire')
 const mildDiv = document.getElementById('mild')
 const sauceServedSeparatelyDiv = document.getElementById('sauceServedSeparately')
 
@@ -32,7 +33,7 @@ const mealTextConversion = new Map()
 let topic = new Set()
 const allTopics = new Set()
 let questionSelectionNumber = 0
-let currentValue = 6
+let currentValue = 5
 
 let userUUID = ''
 
@@ -45,7 +46,7 @@ async function insertData(mode, data = []) {
     try {
       const { error } = await supabase
         .from('companyExamInsertInformation')
-        .insert([{ timeInformation: getNowTimeInformation(), user_uuid: userUUID, class: mode, name: data[0], spiceLevel: data[1], mild: data[2], sauceServedSeparately: data[3], tableware: data[4], ingredients: data[5], packagingMaterials: data[6], errorInformation: data[7], state: data[8] }]);
+        .insert([{ timeInformation: getNowTimeInformation(), user_uuid: userUUID, class: mode, name: data[0], spiceLevel: data[1], fire: data[2], mild: data[3], sauceServedSeparately: data[4], tableware: data[5], ingredients: data[6], packagingMaterials: data[7], errorInformation: data[8], state: data[9] }]);
       if (error) {
         console.error('Error inserting data:', error);
       } else {
@@ -155,6 +156,7 @@ async function importMealDetails() {
     if (!row.discontinued) {
       meal.set(row.name, [
         row.spiceLevel,
+        row.fire,
         row.mild,
         row.sauceServedSeparately,
         row.tableware,
@@ -237,9 +239,13 @@ async function titleInitialization() {
 }
 
 function formatConversion(str) {
+  const arr = [['×', '*'], ['（', '('], ['）', ')']]
   const s1 = /[,;，、。.！!？?\s]+/
   const s2 = /[+\u5957]/
   const res = []
+  arr.forEach(el => {
+    str = str.replace(el[0], el[1])
+  })
   str.split(s1).filter(Boolean).forEach(subStr => {
     let tmp = ''
     subStr.split(s2).filter(Boolean).forEach(subSub => {
@@ -323,27 +329,31 @@ async function functionCheck() {
     error += `辣度：${std[0]}(<span style="color: red">${selectedLevel}</span>)<br>`
   }
 
-  if (mildDiv.classList.contains('filled') !== std[1]) {
-    error += `減辣：${std[1] ? 'O' : 'X'}(<span style="color: red">${mildDiv.classList.contains('filled') ? 'O' : 'X'}</span>)<br>`
+  if (fireDiv.classList.contains('filled') !== std[1]) {
+    error += `加辣：${std[1] ? 'O' : 'X'}(<span style="color: red">${mildDiv.classList.contains('filled') ? 'O' : 'X'}</span>)<br>`
   }
 
-  if (sauceServedSeparatelyDiv.classList.contains('filled') !== std[2]) {
-    error += `過橋：${std[2] ? 'O' : 'X'}(<span style="color: red">${sauceServedSeparatelyDiv.classList.contains('filled') ? 'O' : 'X'}</span>)<br>`
+  if (mildDiv.classList.contains('filled') !== std[2]) {
+    error += `減辣：${std[2] ? 'O' : 'X'}(<span style="color: red">${mildDiv.classList.contains('filled') ? 'O' : 'X'}</span>)<br>`
+  }
+
+  if (sauceServedSeparatelyDiv.classList.contains('filled') !== std[3]) {
+    error += `過橋：${std[3] ? 'O' : 'X'}(<span style="color: red">${sauceServedSeparatelyDiv.classList.contains('filled') ? 'O' : 'X'}</span>)<br>`
   }
 
   if (!tablewareInput.value.trim()) {
     tablewareInput.value = '無'
   }
-  if (Compare(tablewareInput.value, std[3])) {
-    const res = returnError(tablewareInput.value, std[3])
+  if (Compare(tablewareInput.value, std[4])) {
+    const res = returnError(tablewareInput.value, std[4])
     error += `餐具：${res[0]}(${res[1]})<br>`
   }
 
   if (!ingredientsInput.value.trim()) {
     ingredientsInput.value = '無'
   }
-  if (Compare(ingredientsInput.value, std[4])) {
-    const res = returnErrorElse(ingredientsInput.value, std[4])
+  if (Compare(ingredientsInput.value, std[5])) {
+    const res = returnErrorElse(ingredientsInput.value, std[5])
     console.log('total: ' + res[3] + ', score: ' + res[2])
     if (!(res[2] >= currentValue || (res[3] == res[2] && res[3] < currentValue))) {
       error += `食材：${res[0]}(${res[1]})<br>`
@@ -354,14 +364,14 @@ async function functionCheck() {
   if (!packagingMaterialsInput.value.trim()) {
     packagingMaterialsInput.value = '無'
   }
-  if (Compare(packagingMaterialsInput.value, std[5])) {
-    const res = returnError(packagingMaterialsInput.value, std[5])
+  if (Compare(packagingMaterialsInput.value, std[6])) {
+    const res = returnError(packagingMaterialsInput.value, std[6])
     error += `包材：${res[0]}(${res[1]})<br>`
   }
 
   await hideLoading()
 
-  insertData('Check', [nameDiv.textContent, selectedLevel, mildDiv.classList.contains('filled'), sauceServedSeparatelyDiv.classList.contains('filled'), tablewareInput.value, ingredientsInput.value, packagingMaterialsInput.value, error, (error ? 'Failed' : 'Pass')])
+  insertData('Check', [nameDiv.textContent, selectedLevel, fireDiv.classList.contains('filled'), mildDiv.classList.contains('filled'), sauceServedSeparatelyDiv.classList.contains('filled'), tablewareInput.value, ingredientsInput.value, packagingMaterialsInput.value, error, (error ? 'Failed' : 'Pass')])
 
   if (!error) {
     topic.delete(nameDiv.textContent)
