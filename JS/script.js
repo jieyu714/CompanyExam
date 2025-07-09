@@ -169,7 +169,11 @@ async function importMealDetails() {
       }
       mealName.get(row.class).push(row.name)
       allTopics.add(row.name)
-      document.querySelector(`div[data-type="${row.class}"]`).classList.add('filled')
+      if (document.querySelector(`div[data-type="${row.class}"]`)) {
+        document.querySelector(`div[data-type="${row.class}"]`).classList.add('filled')
+      } else {
+        console.error(row)
+      }
     }
   })
   console.log('Meal Name:', mealName)
@@ -220,6 +224,7 @@ function clear() {
   tablewareInput.value = ''
   ingredientsInput.value = ''
   packagingMaterialsInput.value = ''
+  fireDiv.classList.remove('filled')
   mildDiv.classList.remove('filled')
   sauceServedSeparatelyDiv.classList.remove('filled')
 }
